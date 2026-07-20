@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: taskdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - task-api-network
+
+  db-migration:
+    container_name: db-migration
+    image: migrate/migrate:v4.16.2
+    volumes:
+      # Maps your local ./migrations folder to /migration inside the container
+      - ./migrations:/migration
+    # Pass arguments directly to the migrate binary
+    command:
+      - -path=/migration
+      - -database=postgres://postgres:postgres@postgres:5432/taskdb?sslmode=disable
+      - -verbose
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - task-api-network
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migration:
+        condition: service_completed_successfully
+    environment:
+      APP_PORT: "8080"
+      APP_ENV: "development"
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/taskdb?sslmode=disable"
+      JWT_SECRET: "change-me-in-production-please"
+      JWT_EXPIRY_HOURS: "24"
+      IDEMPOTENCY_TTL_HOURS: "24"
+    ports:
+      - "8080:8080"
+    networks:
+      - task-api-network
+
+volumes:
+  pgdata:
+
+networks:
+  task-api-network:
+    driver: bridge

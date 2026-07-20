@@ -1,0 +1,43 @@
+# Binaries
+bin/
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+coverage.out
+cover.out
+coverage.html
+
+# Vendor (uncomment jika tidak ingin commit vendor)
+# vendor/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+/cover.out.tmp
+
+# Air
+.air.toml
+
+# Delve
+__debug_bin
