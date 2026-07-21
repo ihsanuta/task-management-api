@@ -55,7 +55,7 @@ func NewConflict(message string) *AppError {
 }
 
 func NewInternal(err error) *AppError {
-	return Wrap(http.StatusInternalServerError, "INTERNAL_ERROR", "an unexpected error occurred", err)
+	return Wrap(http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
 }
 
 var (

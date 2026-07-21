@@ -43,10 +43,10 @@ func main() {
 	validator := validator.New()
 
 	// Repositories
-	userRepo := postgres.NewUserRepository(db)
-	teamRepo := postgres.NewTeamRepository(db)
-	taskRepo := postgres.NewTaskRepository(db)
-	idemRepo := postgres.NewIdempotencyRepository(db)
+	userRepo := postgres.NewUserRepository(db, log)
+	teamRepo := postgres.NewTeamRepository(db, log)
+	taskRepo := postgres.NewTaskRepository(db, log)
+	idemRepo := postgres.NewIdempotencyRepository(db, log)
 
 	jwtManager := jwtutil.NewManager(cfg.JWTSecret, cfg.JWTExpiry)
 	authUC := usecase.NewAuthUsecase(userRepo, teamRepo, jwtManager)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -13,20 +14,34 @@ import (
 	"github.com/ihsanuta/task-management-api/pkg/apperror"
 )
 
-type TaskRepository struct{ db *sql.DB }
+type TaskRepository struct {
+	db     *sql.DB
+	logger *slog.Logger
+}
 
-func NewTaskRepository(db *sql.DB) *TaskRepository { return &TaskRepository{db: db} }
+func NewTaskRepository(db *sql.DB, logger *slog.Logger) *TaskRepository {
+	return &TaskRepository{db: db, logger: logger}
+}
 
 func (r *TaskRepository) Create(ctx context.Context, t *domain.Task) error {
 	query := `INSERT INTO tasks (id, title, description, status, owner_id, assignee_id, team_id, created_at, updated_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	_, err := r.db.ExecContext(ctx, query, t.ID, t.Title, t.Description, t.Status, t.OwnerID, t.AssigneeID, t.TeamID, t.CreatedAt, t.UpdatedAt)
+	if err != nil {
+		r.logger.Error("failed TaskRepository Create ExecContext", "error", err.Error())
+	}
 	return err
 }
 
 func (r *TaskRepository) GetByID(ctx context.Context, id string) (*domain.Task, error) {
 	query := `SELECT id, title, description, status, owner_id, assignee_id, team_id, created_at, updated_at FROM tasks WHERE id = $1`
-	return scanTask(r.db.QueryRowContext(ctx, query, id))
+	result, err := scanTask(r.db.QueryRowContext(ctx, query, id))
+	if err != nil {
+		r.logger.Error("failed TaskRepository GetByID scanTask", "error", err.Error())
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func scanTask(row *sql.Row) (*domain.Task, error) {
@@ -61,6 +76,7 @@ func (r *TaskRepository) List(ctx context.Context, f repository.TaskFilter) ([]d
 	var total int64
 	countQuery := `SELECT COUNT(*) FROM tasks WHERE ` + whereClause
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		r.logger.Error("failed TaskRepository List QueryRowContext", "error", err.Error())
 		return nil, 0, err
 	}
 
@@ -72,6 +88,7 @@ func (r *TaskRepository) List(ctx context.Context, f repository.TaskFilter) ([]d
 
 	rows, err := r.db.QueryContext(ctx, listQuery, args...)
 	if err != nil {
+		r.logger.Error("failed TaskRepository List QueryContext", "error", err.Error())
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -80,6 +97,7 @@ func (r *TaskRepository) List(ctx context.Context, f repository.TaskFilter) ([]d
 	for rows.Next() {
 		var t domain.Task
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.OwnerID, &t.AssigneeID, &t.TeamID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			r.logger.Error("failed TaskRepository List RowScan", "error", err.Error())
 			return nil, 0, err
 		}
 		tasks = append(tasks, t)
@@ -91,6 +109,7 @@ func (r *TaskRepository) Update(ctx context.Context, t *domain.Task) error {
 	query := `UPDATE tasks SET title=$1, description=$2, status=$3, updated_at=$4 WHERE id=$5`
 	res, err := r.db.ExecContext(ctx, query, t.Title, t.Description, t.Status, t.UpdatedAt, t.ID)
 	if err != nil {
+		r.logger.Error("failed TaskRepository Update ExecContext", "error", err.Error())
 		return err
 	}
 	n, _ := res.RowsAffected()
@@ -103,6 +122,7 @@ func (r *TaskRepository) Update(ctx context.Context, t *domain.Task) error {
 func (r *TaskRepository) Delete(ctx context.Context, id string) error {
 	res, err := r.db.ExecContext(ctx, `DELETE FROM tasks WHERE id = $1`, id)
 	if err != nil {
+		r.logger.Error("failed TaskRepository Delete ExecContext", "error", err.Error())
 		return err
 	}
 	n, _ := res.RowsAffected()
@@ -115,12 +135,14 @@ func (r *TaskRepository) Delete(ctx context.Context, id string) error {
 func (r *TaskRepository) WithTx(ctx context.Context, fn func(tx repository.TxTaskRepository) error) error {
 	sqlTx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		r.logger.Error("failed TaskRepository WithTx BeginTx", "error", err.Error())
 		return err
 	}
 
 	txRepo := &pgTxTaskRepository{tx: sqlTx}
 	if err := fn(txRepo); err != nil {
 		if rbErr := sqlTx.Rollback(); rbErr != nil {
+			r.logger.Error("failed TaskRepository WithTx BeginTx", "error", rbErr.Error())
 			return fmt.Errorf("rollback failed: %v (original error: %w)", rbErr, err)
 		}
 		return err
