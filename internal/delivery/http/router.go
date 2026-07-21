@@ -8,6 +8,9 @@ import (
 	"github.com/ihsanuta/task-management-api/pkg/jwtutil"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	_ "github.com/ihsanuta/task-management-api/docs"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 type Handlers struct {
@@ -27,6 +30,8 @@ func NewRouter(h Handlers, jwtManager *jwtutil.Manager) *echo.Echo {
 			"status": "ok",
 		})
 	})
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	auth := e.Group("/auth")
 	auth.POST("/register", h.Auth.Register)

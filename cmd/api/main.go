@@ -20,6 +20,14 @@ import (
 	applog "github.com/ihsanuta/task-management-api/pkg/logger"
 )
 
+// @title Task Management API
+// @version 1.0
+// @description API untuk aplikasi Task Management.
+// @host localhost:8080
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	cfg := config.Load()
 	log := applog.New(cfg.Env)

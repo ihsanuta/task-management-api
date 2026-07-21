@@ -1,0 +1,340 @@
+basePath: /
+definitions:
+  dto.AssignTaskRequest:
+    properties:
+      assignee_id:
+        type: string
+    required:
+    - assignee_id
+    type: object
+  dto.CreateTaskRequest:
+    properties:
+      description:
+        type: string
+      status:
+        enum:
+        - pending
+        - in_progress
+        - done
+        type: string
+      title:
+        type: string
+    required:
+    - description
+    - title
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      team_id:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  dto.UpdateTaskRequest:
+    properties:
+      description:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  response.Envelope:
+    properties:
+      code:
+        type: string
+      data: {}
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/response.Meta'
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  response.Meta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API untuk aplikasi Task Management.
+  title: Task Management API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login user ke dalam sistem
+      parameters:
+      - description: Data login
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Berhasil login
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Login user
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan user baru ke dalam sistem
+      parameters:
+      - description: Data Pendaftaran
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Berhasil didaftarkan
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      summary: Daftar user baru
+      tags:
+      - Auth
+  /task:
+    get:
+      consumes:
+      - application/json
+      description: List task dalam sistem
+      parameters:
+      - description: Filter task berdasarkan title
+        in: query
+        name: search
+        type: string
+      - description: Filter task berdasarkan status
+        enum:
+        - active
+        - completed
+        - pending
+        in: query
+        name: status
+        type: string
+      - default: 10
+        description: Jumlah maksimal task yang dikembalikan
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Nomor halaman
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List task ditampilkan
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List task
+      tags:
+      - Task
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan task baru ke dalam sistem
+      parameters:
+      - description: Data Task
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Task berhasil dibuat
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create task baru
+      tags:
+      - Task
+  /task/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Menghapus task di dalam sistem
+      parameters:
+      - description: ID Task
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Task berhasil dihapus
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Delete task
+      tags:
+      - Task
+    get:
+      consumes:
+      - application/json
+      description: Detail task dalam sistem
+      parameters:
+      - description: ID Task
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detail task ditampilkan
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Detail task
+      tags:
+      - Task
+    put:
+      consumes:
+      - application/json
+      description: Mengupdate task di dalam sistem
+      parameters:
+      - description: ID Task
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Task
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Task berhasil diupdate
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update task
+      tags:
+      - Task
+  /task/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan task baru ke dalam sistem
+      parameters:
+      - description: ID Task
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Task
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Task berhasil diassign
+          schema:
+            $ref: '#/definitions/response.Envelope'
+        "400":
+          description: Payload tidak valid
+          schema:
+            $ref: '#/definitions/response.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Create task baru
+      tags:
+      - Task
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

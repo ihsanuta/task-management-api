@@ -1,4 +1,4 @@
-.PHONY: run build test test-race migrate-up migrate-down docker-up docker-down tidy fmt vet
+.PHONY: run build test test-race migrate-up migrate-down docker-up docker-down tidy fmt vet swag
 
 APP_NAME=task-management-api
 DB_URL?=postgres://postgres:postgres@localhost:5432/taskdb?sslmode=disable
@@ -35,3 +35,6 @@ docker-up:
 
 docker-down:
 	docker compose down -v
+
+swag:
+	swag init -g cmd/api/main.go
