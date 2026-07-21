@@ -63,6 +63,9 @@ network connection is required**. The idempotency race-condition tests in
 `internal/usecase/task_usecase_test.go` are run with `-race` to prove there is
 no data race in the claim-then-create path.
 
+For testing api with swagger, the API is available at
+`http://localhost:8080/swagger/index.html` 
+
 ---
 
 ## 2. Authentication
