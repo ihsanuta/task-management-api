@@ -2,7 +2,6 @@ package domain
 
 import "time"
 
-// TaskStatus enumerates the allowed lifecycle states of a Task.
 type TaskStatus string
 
 const (

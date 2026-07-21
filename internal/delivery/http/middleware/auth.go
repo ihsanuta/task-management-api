@@ -1,13 +1,12 @@
 package middleware
 
 import (
-	"context"
-	"net/http"
 	"strings"
 
 	"github.com/ihsanuta/task-management-api/pkg/apperror"
 	"github.com/ihsanuta/task-management-api/pkg/jwtutil"
 	"github.com/ihsanuta/task-management-api/pkg/response"
+	"github.com/labstack/echo/v4"
 )
 
 type authCtxKey string
@@ -18,37 +17,34 @@ const (
 	EmailKey  authCtxKey = "email"
 )
 
-// Auth validates the Bearer JWT on every protected route and injects the
-// authenticated user's id/team/email into the request context.
-func Auth(jwtManager *jwtutil.Manager) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
+func Auth(jwtManager *jwtutil.Manager) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			header := c.Request().Header.Get("Authorization")
 			if header == "" || !strings.HasPrefix(header, "Bearer ") {
-				response.Error(w, apperror.ErrInvalidToken)
-				return
+				return response.Error(c, apperror.ErrInvalidToken)
 			}
 			tokenStr := strings.TrimPrefix(header, "Bearer ")
 			claims, err := jwtManager.Parse(tokenStr)
 			if err != nil {
-				response.Error(w, apperror.ErrInvalidToken)
-				return
+				return response.Error(c, apperror.ErrInvalidToken)
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-			ctx = context.WithValue(ctx, TeamIDKey, claims.TeamID)
-			ctx = context.WithValue(ctx, EmailKey, claims.Email)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+			c.Set(string(UserIDKey), claims.UserID)
+			c.Set(string(TeamIDKey), claims.TeamID)
+			c.Set(string(EmailKey), claims.Email)
+
+			return next(c)
+		}
 	}
 }
 
-func UserID(ctx context.Context) string {
-	v, _ := ctx.Value(UserIDKey).(string)
+func UserID(c echo.Context) string {
+	v, _ := c.Get(string(UserIDKey)).(string)
 	return v
 }
 
-func TeamID(ctx context.Context) string {
-	v, _ := ctx.Value(TeamIDKey).(string)
+func TeamID(c echo.Context) string {
+	v, _ := c.Get(string(TeamIDKey)).(string)
 	return v
 }

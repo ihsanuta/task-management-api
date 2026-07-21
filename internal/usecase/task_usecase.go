@@ -142,8 +142,6 @@ func (uc *TaskUsecase) buildAndPersistTask(ctx context.Context, ownerID, teamID 
 	return task, nil
 }
 
-// ListTasks returns tasks visible to the user (owned or assigned), with
-// optional status filter, title search, and pagination.
 func (uc *TaskUsecase) ListTasks(ctx context.Context, userID, teamID, status, search string, page, limit int) ([]dto.TaskResponse, int64, error) {
 	if status != "" && !domain.TaskStatus(status).Valid() {
 		return nil, 0, apperror.NewValidation("status must be one of: pending, in_progress, done")
@@ -251,10 +249,6 @@ func (uc *TaskUsecase) getOwnedOrVisibleTask(ctx context.Context, userID, teamID
 	return task, nil
 }
 
-// AssignTask reassigns a task to another user in the same team. The
-// update, the audit log entry, and the (mock) notification all happen
-// inside a single database transaction: if any step fails, everything
-// rolls back and the task keeps its previous assignee.
 func (uc *TaskUsecase) AssignTask(ctx context.Context, actorID, teamID, taskID, assigneeID string) (*dto.TaskResponse, error) {
 	assignee, err := uc.users.GetByID(ctx, assigneeID)
 	if err != nil {
@@ -292,10 +286,6 @@ func (uc *TaskUsecase) AssignTask(ctx context.Context, actorID, teamID, taskID, 
 			return apperror.NewInternal(err)
 		}
 
-		// Notification is mocked: in production this would publish to a
-		// queue (e.g. SQS/Kafka) or call a notification service. It is
-		// executed inside the same transactional unit of work so a failure
-		// here also triggers a full rollback, per the requirements.
 		if err := notifyAssignee(ctx, assignee.Email, taskID); err != nil {
 			return apperror.NewInternal(err)
 		}
@@ -315,9 +305,6 @@ func (uc *TaskUsecase) AssignTask(ctx context.Context, actorID, teamID, taskID, 
 	return &resp, nil
 }
 
-// notifyAssignee is a mock notification step (logs instead of sending an
-// email/push notification), kept as a function so it's easy to swap for a
-// real integration later.
 func notifyAssignee(_ context.Context, email, taskID string) error {
 	slog.Info("notification sent", "channel", "mock", "to", email, "task_id", taskID, "message", "you have been assigned a new task")
 	return nil

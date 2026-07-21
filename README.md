@@ -1,8 +1,6 @@
 # Task Management API (Multi-User)
 
-A REST API for multi-user task management built in Go, with JWT auth, per-user/team
-authorization, idempotent task creation, transactional task assignment, structured
-logging, and structured error handling.
+A REST API for multi-user task management built in Go
 
 ## Tech stack
 

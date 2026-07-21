@@ -10,8 +10,8 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
 type AuthResponse struct {
@@ -43,7 +43,7 @@ type UpdateTaskRequest struct {
 }
 
 type AssignTaskRequest struct {
-	AssigneeID string `json:"assignee_id"`
+	AssigneeID string `json:"assignee_id" validate:"required"`
 }
 
 type TaskResponse struct {

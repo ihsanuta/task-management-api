@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ihsanuta/task-management-api/internal/usecase"
 	"github.com/ihsanuta/task-management-api/pkg/apperror"
 	"github.com/ihsanuta/task-management-api/pkg/response"
+	"github.com/labstack/echo/v4"
 )
 
 type TaskHandler struct {
@@ -22,45 +22,39 @@ func NewTaskHandler(uc *usecase.TaskUsecase, validator *validator.Validate) *Tas
 	return &TaskHandler{uc: uc, validator: validator}
 }
 
-func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) Create(c echo.Context) error {
 	var req dto.CreateTaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, apperror.NewValidation("invalid JSON body"))
-		return
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c, apperror.NewValidation("invalid JSON body"))
 	}
 
 	err := h.validator.Struct(req)
 	if err != nil {
-		response.Error(w, apperror.NewValidationError(err))
-		return
+		return response.Error(c, apperror.NewValidationError(err))
 	}
 
-	idemKey := r.Header.Get("Idempotency-Key")
+	idemKey := c.Request().Header.Get("Idempotency-Key")
 	if idemKey == "" {
-		response.Error(w, apperror.ErrInvalidIdempotencyKey)
-		return
+		return response.Error(c, apperror.ErrInvalidIdempotencyKey)
 	}
 
-	result, err := h.uc.CreateTask(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), req, idemKey)
+	result, err := h.uc.CreateTask(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), req, idemKey)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, err)
 	}
 
-	response.Success(w, result.Status, result.Task)
+	return response.Success(c, result.Status, result.Task)
 }
 
-func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	status := q.Get("status")
-	search := q.Get("search")
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
+func (h *TaskHandler) List(c echo.Context) error {
+	status := c.QueryParam("status")
+	search := c.QueryParam("search")
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 
-	tasks, total, err := h.uc.ListTasks(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), status, search, page, limit)
+	tasks, total, err := h.uc.ListTasks(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), status, search, page, limit)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, err)
 	}
 	if page < 1 {
 		page = 1
@@ -69,60 +63,54 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
-	response.SuccessWithMeta(w, http.StatusOK, tasks, response.Meta{
+	return response.SuccessWithMeta(c, http.StatusOK, tasks, response.Meta{
 		Page: page, Limit: limit, TotalItems: total, TotalPages: totalPages,
 	})
 }
 
-func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	task, err := h.uc.GetTask(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), id)
+func (h *TaskHandler) Get(c echo.Context) error {
+	id := c.Param("id")
+	task, err := h.uc.GetTask(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), id)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, err)
 	}
-	response.Success(w, http.StatusOK, task)
+	return response.Success(c, http.StatusOK, task)
 }
 
-func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *TaskHandler) Update(c echo.Context) error {
+	id := c.Param("id")
 	var req dto.UpdateTaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, apperror.NewValidation("invalid JSON body"))
-		return
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c, apperror.NewValidation("invalid JSON body"))
 	}
-	task, err := h.uc.UpdateTask(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), id, req)
+	task, err := h.uc.UpdateTask(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), id, req)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, err)
 	}
-	response.Success(w, http.StatusOK, task)
+	return response.Success(c, http.StatusOK, task)
 }
 
-func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if err := h.uc.DeleteTask(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), id); err != nil {
-		response.Error(w, err)
-		return
+func (h *TaskHandler) Delete(c echo.Context) error {
+	id := c.Param("id")
+	if err := h.uc.DeleteTask(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), id); err != nil {
+		return response.Error(c, err)
 	}
-	response.Success(w, http.StatusOK, map[string]string{"message": "task deleted successfully"})
+	return response.Success(c, http.StatusOK, map[string]string{"message": "task deleted successfully"})
 }
 
-func (h *TaskHandler) Assign(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *TaskHandler) Assign(c echo.Context) error {
+	id := c.Param("id")
 	var req dto.AssignTaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, apperror.NewValidation("invalid JSON body"))
-		return
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c, apperror.NewValidation("invalid JSON body"))
 	}
-	if req.AssigneeID == "" {
-		response.Error(w, apperror.NewValidation("assignee_id is required"))
-		return
-	}
-	task, err := h.uc.AssignTask(r.Context(), appmw.UserID(r.Context()), appmw.TeamID(r.Context()), id, req.AssigneeID)
+	err := h.validator.Struct(req)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, apperror.NewValidationError(err))
 	}
-	response.Success(w, http.StatusOK, task)
+	task, err := h.uc.AssignTask(c.Request().Context(), appmw.UserID(c), appmw.TeamID(c), id, req.AssigneeID)
+	if err != nil {
+		return response.Error(c, err)
+	}
+	return response.Success(c, http.StatusOK, task)
 }

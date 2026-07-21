@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -9,6 +8,7 @@ import (
 	"github.com/ihsanuta/task-management-api/internal/usecase"
 	"github.com/ihsanuta/task-management-api/pkg/apperror"
 	"github.com/ihsanuta/task-management-api/pkg/response"
+	"github.com/labstack/echo/v4"
 )
 
 type AuthHandler struct {
@@ -23,37 +23,39 @@ func NewAuthHandler(uc *usecase.AuthUsecase, validator *validator.Validate) *Aut
 	}
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Register(c echo.Context) error {
 	var req dto.RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, apperror.NewValidation("invalid JSON body"))
-		return
+
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c, apperror.NewValidation("invalid JSON body"))
 	}
 
 	err := h.validator.Struct(req)
 	if err != nil {
-		response.Error(w, apperror.NewValidationError(err))
-		return
+		return response.Error(c, apperror.NewValidationError(err))
 	}
 
-	res, err := h.uc.Register(r.Context(), req)
+	res, err := h.uc.Register(c.Request().Context(), req)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, err)
 	}
-	response.Success(w, http.StatusCreated, res)
+	return response.Success(c, http.StatusCreated, res)
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(c echo.Context) error {
 	var req dto.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, apperror.NewValidation("invalid JSON body"))
-		return
+	if err := c.Bind(&req); err != nil {
+		return response.Error(c, apperror.NewValidation("invalid JSON body"))
 	}
-	res, err := h.uc.Login(r.Context(), req)
+
+	err := h.validator.Struct(req)
 	if err != nil {
-		response.Error(w, err)
-		return
+		return response.Error(c, apperror.NewValidationError(err))
 	}
-	response.Success(w, http.StatusOK, res)
+
+	res, err := h.uc.Login(c.Request().Context(), req)
+	if err != nil {
+		return response.Error(c, err)
+	}
+	return response.Success(c, http.StatusOK, res)
 }

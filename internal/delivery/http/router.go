@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/ihsanuta/task-management-api/internal/delivery/http/handler"
-	"github.com/ihsanuta/task-management-api/internal/delivery/http/middleware"
+	authmiddleware "github.com/ihsanuta/task-management-api/internal/delivery/http/middleware"
 	"github.com/ihsanuta/task-management-api/pkg/jwtutil"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type Handlers struct {
@@ -13,28 +15,33 @@ type Handlers struct {
 	Task *handler.TaskHandler
 }
 
-func NewRouter(h Handlers, jwtManager *jwtutil.Manager) http.Handler {
-	mux := http.NewServeMux()
+func NewRouter(h Handlers, jwtManager *jwtutil.Manager) *echo.Echo {
+	e := echo.New()
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	e.Use(authmiddleware.Logger())
+	e.Use(middleware.RequestID())
+	e.Use(middleware.Recover())
+
+	e.GET("/healthz", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"status": "ok",
+		})
 	})
 
-	mux.HandleFunc("POST /auth/register", h.Auth.Register)
-	mux.HandleFunc("POST /auth/login", h.Auth.Login)
+	auth := e.Group("/auth")
+	auth.POST("/register", h.Auth.Register)
+	auth.POST("/login", h.Auth.Login)
 
-	authMw := middleware.Auth(jwtManager)
-	mux.Handle("POST /tasks", authMw(http.HandlerFunc(h.Task.Create)))
-	mux.Handle("GET /tasks", authMw(http.HandlerFunc(h.Task.List)))
-	mux.Handle("GET /tasks/{id}", authMw(http.HandlerFunc(h.Task.Get)))
-	mux.Handle("PUT /tasks/{id}", authMw(http.HandlerFunc(h.Task.Update)))
-	mux.Handle("DELETE /tasks/{id}", authMw(http.HandlerFunc(h.Task.Delete)))
-	mux.Handle("POST /tasks/{id}/assign", authMw(http.HandlerFunc(h.Task.Assign)))
+	// Protected Routes (Tasks)
+	tasks := e.Group("/tasks")
+	tasks.Use(authmiddleware.Auth(jwtManager))
 
-	var root http.Handler = mux
-	root = middleware.Logger(root)
-	root = middleware.RequestID(root)
-	root = middleware.Recover(root)
-	return root
+	tasks.POST("", h.Task.Create)
+	tasks.GET("", h.Task.List)
+	tasks.GET("/:id", h.Task.Get)
+	tasks.PUT("/:id", h.Task.Update)
+	tasks.DELETE("/:id", h.Task.Delete)
+	tasks.POST("/:id/assign", h.Task.Assign)
+
+	return e
 }
